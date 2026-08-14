@@ -36,14 +36,19 @@ function geoScore(items, countryCode, textFn, subredditFn) {
   const scored = items.map(item => {
     let score = 0;
     const text = (textFn(item) || '').toLowerCase();
+    const sub = subredditFn ? (subredditFn(item) || '').toLowerCase() : '';
+
     if (countryName && text.includes(countryName)) score += 3;
+    if (countryName && sub.includes(countryName)) score += 2;
+
+    // Check noise in post text AND in subreddit name (trim spaces so ' ph ' matches 'ph' in subreddit)
     for (const noise of noiseTerms) {
-      if (text.includes(noise)) { score -= 4; break; }
+      if (text.includes(noise) || sub.includes(noise.trim())) {
+        score -= 4;
+        break;
+      }
     }
-    if (subredditFn) {
-      const sub = (subredditFn(item) || '').toLowerCase();
-      if (countryName && sub.includes(countryName)) score += 2;
-    }
+
     return { item, score };
   });
 
@@ -176,7 +181,16 @@ async function runReddit(brand, countryCode) {
     return true;
   });
 
-  const geoFiltered = geoScore(deduped, countryCode,
+  // Drop posts that don't mention the brand at all — Reddit search matches on
+  // country name too, pulling in generic food/travel posts unrelated to the brand.
+  const brandLower = brand.toLowerCase();
+  const brandRelevant = deduped.filter(item => {
+    const haystack = `${item.title || ''} ${item.selftext || item.body || ''} ${item.url || ''}`.toLowerCase();
+    return haystack.includes(brandLower);
+  });
+  const toScore = brandRelevant.length >= 3 ? brandRelevant : deduped;
+
+  const geoFiltered = geoScore(toScore, countryCode,
     item => `${item.title || item.name || ''} ${item.selftext || item.body || ''}`,
     item => item.subreddit || ''
   );
