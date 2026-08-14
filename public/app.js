@@ -15,9 +15,9 @@ let currentRunId = null;
 
 // ── Views ──
 function showView(id) {
-  document.getElementById('input-view').style.display = id === 'input' ? '' : 'none';
-  document.getElementById('loading-view').style.display = id === 'loading' ? '' : 'none';
-  document.getElementById('results-view').style.display = id === 'results' ? '' : 'none';
+  document.getElementById('input-view').style.display = id === 'input' ? 'block' : 'none';
+  document.getElementById('loading-view').style.display = id === 'loading' ? 'block' : 'none';
+  document.getElementById('results-view').style.display = id === 'results' ? 'block' : 'none';
 }
 
 // ── Input handlers ──
