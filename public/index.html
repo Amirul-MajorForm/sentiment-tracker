@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PULSE — Brand Sentiment Analysis</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-logo">
+    <span class="header-suite">Majorform Intelligence Suite</span>
+    <span class="header-product">PULSE</span>
+  </div>
+  <div class="header-sep"></div>
+  <span class="header-desc">Brand Sentiment Analysis</span>
+</header>
+
+<main class="main">
+
+  <!-- INPUT STATE -->
+  <div id="input-view">
+    <h1 class="input-heading">Brand Sentiment Analysis</h1>
+    <p class="input-sub">Enter a brand name and target market. PULSE will scrape TikTok, Instagram, Reddit, and Google simultaneously, then synthesise a sentiment report.</p>
+
+    <div id="input-error" class="error-banner"></div>
+
+    <div class="form-group">
+      <label for="brand-input">Brand Name</label>
+      <input type="text" id="brand-input" placeholder="e.g. McDonald's" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label for="country-select">Target Market</label>
+      <select id="country-select">
+        <option value="SG" selected>Singapore</option>
+        <option value="MY">Malaysia</option>
+        <option value="ID">Indonesia</option>
+        <option value="TH">Thailand</option>
+        <option value="PH">Philippines</option>
+        <option value="VN">Vietnam</option>
+        <option value="AU">Australia</option>
+        <option value="GB">United Kingdom</option>
+        <option value="US">United States</option>
+        <option value="IN">India</option>
+        <option value="JP">Japan</option>
+        <option value="KR">South Korea</option>
+        <option value="HK">Hong Kong</option>
+        <option value="TW">Taiwan</option>
+      </select>
+    </div>
+    <button class="run-btn" id="run-btn">Run PULSE</button>
+  </div>
+
+  <!-- LOADING STATE -->
+  <div id="loading-view">
+    <div class="loading-header">
+      <div class="loading-title" id="loading-title">Running PULSE…</div>
+      <div class="loading-sub">Scraping data from four platforms simultaneously. This takes 2–4 minutes.</div>
+    </div>
+
+    <div class="scraper-grid">
+      <div class="scraper-card" id="card-tiktok">
+        <div class="scraper-icon">🎵</div>
+        <div class="scraper-info">
+          <div class="scraper-name">TikTok</div>
+          <div class="scraper-actor">clockworks~tiktok-scraper</div>
+          <div class="scraper-status-row">
+            <div class="spinner" id="spin-tiktok"></div>
+            <div class="status-icon" id="icon-tiktok"></div>
+            <div class="scraper-status-text" id="status-tiktok">Queued</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scraper-card" id="card-instagram">
+        <div class="scraper-icon">📸</div>
+        <div class="scraper-info">
+          <div class="scraper-name">Instagram</div>
+          <div class="scraper-actor">apify~instagram-hashtag-scraper</div>
+          <div class="scraper-status-row">
+            <div class="spinner" id="spin-instagram"></div>
+            <div class="status-icon" id="icon-instagram"></div>
+            <div class="scraper-status-text" id="status-instagram">Queued</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scraper-card" id="card-reddit">
+        <div class="scraper-icon">🔴</div>
+        <div class="scraper-info">
+          <div class="scraper-name">Reddit</div>
+          <div class="scraper-actor">automation-lab~reddit-scraper</div>
+          <div class="scraper-status-row">
+            <div class="spinner" id="spin-reddit"></div>
+            <div class="status-icon" id="icon-reddit"></div>
+            <div class="scraper-status-text" id="status-reddit">Queued</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scraper-card" id="card-google">
+        <div class="scraper-icon">🔍</div>
+        <div class="scraper-info">
+          <div class="scraper-name">Google</div>
+          <div class="scraper-actor">apify~google-search-scraper</div>
+          <div class="scraper-status-row">
+            <div class="spinner" id="spin-google"></div>
+            <div class="status-icon" id="icon-google"></div>
+            <div class="scraper-status-text" id="status-google">Queued</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS STATE -->
+  <div id="results-view">
+
+    <div class="results-header">
+      <div>
+        <div class="results-brand" id="res-brand"></div>
+        <div class="results-meta" id="res-meta"></div>
+      </div>
+      <button class="new-run-btn" id="new-run-btn">← New Analysis</button>
+    </div>
+
+    <div id="res-error" class="error-banner"></div>
+
+    <!-- Sentiment Bar -->
+    <div class="sentiment-bar-section">
+      <div>
+        <div class="sentiment-score-label">Sentiment Score</div>
+        <div class="sentiment-score-num" id="res-score"></div>
+        <div id="res-verdict-pill"></div>
+      </div>
+      <div class="sentiment-bar-wrap">
+        <div class="sentiment-bar-track">
+          <div class="sentiment-bar-fill" id="res-bar"></div>
+        </div>
+        <div class="sentiment-range-labels">
+          <span>0 — Very Negative</span>
+          <span>100 — Very Positive</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary + Themes -->
+    <div class="two-col">
+      <div class="section-card">
+        <div class="section-label">Summary</div>
+        <div class="summary-text" id="res-summary"></div>
+      </div>
+      <div>
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="section-label">Key Themes</div>
+          <ul class="themes-list" id="res-themes"></ul>
+        </div>
+        <div class="section-card">
+          <div class="section-label">Data Collected</div>
+          <div class="stats-row" id="res-stats"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Breakdown -->
+    <div class="section-heading">Platform Breakdown</div>
+    <div class="platform-grid" id="res-platforms"></div>
+
+    <!-- Notable Signals -->
+    <div class="section-heading">Notable Signals</div>
+    <div class="signals-grid" id="res-signals"></div>
+
+    <!-- Raw Results -->
+    <div class="section-heading">Raw Results</div>
+    <div class="raw-section">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="raw-tiktok">🎵 TikTok</button>
+        <button class="tab-btn" data-tab="raw-instagram">📸 Instagram</button>
+        <button class="tab-btn" data-tab="raw-reddit">🔴 Reddit</button>
+        <button class="tab-btn" data-tab="raw-google">🔍 Google</button>
+      </div>
+      <div id="raw-tiktok" class="tab-panel active"></div>
+      <div id="raw-instagram" class="tab-panel"></div>
+      <div id="raw-reddit" class="tab-panel"></div>
+      <div id="raw-google" class="tab-panel"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="results-footer">
+      <div class="footer-market" id="res-footer-market"></div>
+      <div class="footer-credits">
+        Powered by Apify · clockworks~tiktok-scraper · apify~instagram-hashtag-scraper · automation-lab~reddit-scraper · apify~google-search-scraper
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
