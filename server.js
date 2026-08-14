@@ -226,7 +226,7 @@ function formatScraperData(data) {
   if (tiktok && tiktok.length > 0) {
     prompt += `\n\n=== TIKTOK (${tiktok.length} posts) ===\n`;
     tiktok.forEach((p, i) => {
-      prompt += `${i + 1}. @${p.author}: "${p.text.slice(0, 200)}" | Likes: ${p.likes} | Comments: ${p.comments}\n`;
+      prompt += `${i + 1}. @${sanitize(p.author)}: "${sanitize(p.text).slice(0, 200)}" | Likes: ${p.likes} | Comments: ${p.comments}\n`;
     });
   } else {
     prompt += `\n\n=== TIKTOK ===\nNo data collected.\n`;
@@ -235,7 +235,7 @@ function formatScraperData(data) {
   if (instagram && instagram.length > 0) {
     prompt += `\n\n=== INSTAGRAM (${instagram.length} posts) ===\n`;
     instagram.forEach((p, i) => {
-      prompt += `${i + 1}. "${p.text.slice(0, 200)}" | Tags: ${p.hashtags} | Likes: ${p.likes}\n`;
+      prompt += `${i + 1}. "${sanitize(p.text).slice(0, 200)}" | Tags: ${sanitize(p.hashtags)} | Likes: ${p.likes}\n`;
     });
   } else {
     prompt += `\n\n=== INSTAGRAM ===\nNo data collected.\n`;
@@ -244,7 +244,7 @@ function formatScraperData(data) {
   if (reddit && reddit.length > 0) {
     prompt += `\n\n=== REDDIT (${reddit.length} posts) ===\n`;
     reddit.forEach((p, i) => {
-      prompt += `${i + 1}. r/${p.subreddit} | "${p.title}" | Score: ${p.score}\n   ${p.body}\n`;
+      prompt += `${i + 1}. r/${sanitize(p.subreddit)} | "${sanitize(p.title)}" | Score: ${p.score}\n   ${sanitize(p.body)}\n`;
     });
   } else {
     prompt += `\n\n=== REDDIT ===\nNo data collected.\n`;
@@ -253,13 +253,21 @@ function formatScraperData(data) {
   if (google && google.length > 0) {
     prompt += `\n\n=== GOOGLE SEARCH RESULTS (${google.length} results) ===\n`;
     google.forEach((p, i) => {
-      prompt += `${i + 1}. "${p.title}" | ${p.description.slice(0, 200)}\n`;
+      prompt += `${i + 1}. "${sanitize(p.title)}" | ${sanitize(p.description).slice(0, 200)}\n`;
     });
   } else {
     prompt += `\n\n=== GOOGLE ===\nNo data collected.\n`;
   }
 
   return prompt;
+}
+
+function sanitize(str) {
+  // Replace lone surrogates that make JSON invalid
+  return String(str || '').replace(/[\uD800-\uDFFF]/g, c => {
+    const code = c.charCodeAt(0);
+    return (code >= 0xD800 && code <= 0xDBFF) || (code >= 0xDC00 && code <= 0xDFFF) ? '' : c;
+  });
 }
 
 async function synthesise(brand, countryCode, scrapedData) {
