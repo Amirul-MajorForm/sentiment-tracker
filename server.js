@@ -136,17 +136,61 @@ async function runTikTok(brand, countryCode) {
 }
 
 async function runInstagram(brand) {
-  const hashtag = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const run = await startActor('apify~instagram-hashtag-scraper', {
-    hashtags: [hashtag],
-    resultsLimit: 10,
-    resultsType: 'posts',
-    proxyConfiguration: { useApifyProxy: true }
-  });
-  const finished = await pollRun(run.id);
-  const items = await fetchDataset(finished.defaultDatasetId);
+  const handle = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  return items.slice(0, 10).map(item => ({
+  // Run all three scrapers in parallel; failures are non-fatal
+  const scraperJobs = [
+    {
+      actorId: 'apify~instagram-hashtag-scraper',
+      input: {
+        hashtags: [handle],
+        resultsLimit: 8,
+        resultsType: 'posts',
+        proxyConfiguration: { useApifyProxy: true }
+      }
+    },
+    {
+      actorId: 'apify~instagram-tagged-scraper',
+      input: {
+        usernames: [handle],
+        resultsLimit: 8,
+        proxyConfiguration: { useApifyProxy: true }
+      }
+    },
+    {
+      actorId: 'apify~instagram-search-scraper',
+      input: {
+        search: brand,
+        searchType: 'hashtag',
+        searchLimit: 8,
+        proxyConfiguration: { useApifyProxy: true }
+      }
+    }
+  ];
+
+  const settled = await Promise.allSettled(
+    scraperJobs.map(async ({ actorId, input }) => {
+      const run = await startActor(actorId, input);
+      const finished = await pollRun(run.id);
+      return fetchDataset(finished.defaultDatasetId);
+    })
+  );
+
+  const allItems = [];
+  for (const result of settled) {
+    if (result.status === 'fulfilled') allItems.push(...result.value);
+  }
+
+  // Deduplicate by URL / shortCode / id
+  const seen = new Set();
+  const deduped = allItems.filter(item => {
+    const key = item.url || item.shortCode || item.id;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return deduped.slice(0, 10).map(item => ({
     text: item.caption || item.alt || '',
     hashtags: (item.hashtags || []).slice(0, 5).map(h => `#${h}`).join(' '),
     url: item.url || (item.shortCode ? `https://instagram.com/p/${item.shortCode}` : ''),
