@@ -163,9 +163,10 @@ async function runTikTok(brand, countryCode, tiktokHandle) {
   }));
 }
 
-async function runInstagram(brand, instagramHandle) {
+async function runInstagram(brand, instagramHandle, countryCode) {
   // Use the provided handle if available; otherwise guess from brand name
   const handle = instagramHandle || brand.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const countryName = COUNTRY_MAP[countryCode] || countryCode;
 
   // Run all three scrapers in parallel; failures are non-fatal
   const scraperJobs = [
@@ -173,7 +174,7 @@ async function runInstagram(brand, instagramHandle) {
       actorId: 'apify~instagram-hashtag-scraper',
       input: {
         hashtags: [handle],
-        resultsLimit: 8,
+        resultsLimit: 12,
         resultsType: 'posts',
         proxyConfiguration: { useApifyProxy: true }
       }
@@ -182,16 +183,17 @@ async function runInstagram(brand, instagramHandle) {
       actorId: 'apify~instagram-tagged-scraper',
       input: {
         usernames: [handle],
-        resultsLimit: 8,
+        resultsLimit: 12,
         proxyConfiguration: { useApifyProxy: true }
       }
     },
     {
       actorId: 'apify~instagram-search-scraper',
       input: {
-        search: brand,
+        // Include country name in search so the scraper surfaces market-relevant content
+        search: `${brand} ${countryName}`,
         searchType: 'hashtag',
-        searchLimit: 8,
+        searchLimit: 12,
         proxyConfiguration: { useApifyProxy: true }
       }
     }
@@ -219,7 +221,23 @@ async function runInstagram(brand, instagramHandle) {
     return true;
   });
 
-  return deduped.slice(0, 10).map(item => ({
+  // Brand-relevance filter: drop posts with no mention of the brand in caption or hashtags
+  const brandLower = brand.toLowerCase();
+  const brandRelevant = deduped.filter(item => {
+    const haystack = `${item.caption || ''} ${item.alt || ''} ${(item.hashtags || []).join(' ')}`.toLowerCase();
+    return haystack.includes(brandLower);
+  });
+  const toScore = brandRelevant.length >= 3 ? brandRelevant : deduped;
+
+  // Geo-scoring: penalise off-market content (e.g. Indonesian/Thai posts when targeting SG)
+  const geoFiltered = geoScore(
+    toScore,
+    countryCode,
+    item => `${item.caption || item.alt || ''} ${(item.hashtags || []).join(' ')}`,
+    null
+  );
+
+  return geoFiltered.slice(0, 10).map(item => ({
     text: item.caption || item.alt || '',
     hashtags: (item.hashtags || []).slice(0, 5).map(h => `#${h}`).join(' '),
     url: item.url || (item.shortCode ? `https://instagram.com/p/${item.shortCode}` : ''),
@@ -415,7 +433,7 @@ async function processRun(runId, brand, countryCode, tiktokHandle, instagramHand
     {
       key: 'instagram',
       actorId: 'apify~instagram-hashtag-scraper',
-      fn: () => runInstagram(brand, instagramHandle)
+      fn: () => runInstagram(brand, instagramHandle, countryCode)
     },
     {
       key: 'reddit',
