@@ -27,6 +27,14 @@ document.getElementById('brand-input').addEventListener('keydown', e => {
 document.getElementById('run-btn').addEventListener('click', startRun);
 document.getElementById('new-run-btn').addEventListener('click', resetToInput);
 
+// ── Handles toggle ──
+document.getElementById('handles-toggle').addEventListener('click', () => {
+  const body = document.getElementById('handles-body');
+  const chevron = document.getElementById('handles-chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+});
+
 // ── Tabs ──
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -40,6 +48,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 async function startRun() {
   const brand = document.getElementById('brand-input').value.trim();
   const countryCode = document.getElementById('country-select').value;
+  const tiktokHandle = document.getElementById('tiktok-handle').value.trim().replace(/^@/, '');
+  const instagramHandle = document.getElementById('instagram-handle').value.trim().replace(/^@/, '');
 
   const errorEl = document.getElementById('input-error');
   errorEl.classList.remove('visible');
@@ -61,10 +71,14 @@ async function startRun() {
   showView('loading');
 
   try {
+    const body = { brand, countryCode };
+    if (tiktokHandle) body.tiktokHandle = tiktokHandle;
+    if (instagramHandle) body.instagramHandle = instagramHandle;
+
     const res = await fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand, countryCode })
+      body: JSON.stringify(body)
     });
     if (!res.ok) {
       const err = await res.json();

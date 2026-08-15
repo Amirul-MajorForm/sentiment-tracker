@@ -95,22 +95,50 @@ async function fetchDataset(datasetId) {
   return res.json();
 }
 
-async function runTikTok(brand, countryCode) {
+async function runTikTok(brand, countryCode, tiktokHandle) {
   const countryName = COUNTRY_MAP[countryCode] || countryCode;
   let results = [];
 
-  for (const query of [`${brand} ${countryName}`, brand]) {
-    const run = await startActor('clockworks~tiktok-scraper', {
-      searchQueries: [query],
+  // If a handle is provided, scrape the brand's own profile in parallel with search
+  const jobs = [
+    startActor('clockworks~tiktok-scraper', {
+      searchQueries: [`${brand} ${countryName}`],
       resultsPerPage: 10,
       shouldDownloadVideos: false,
       shouldDownloadCovers: false,
       shouldDownloadSlideshowImages: false,
       shouldDownloadSubtitles: false
-    });
-    const finished = await pollRun(run.id);
-    const items = await fetchDataset(finished.defaultDatasetId);
-    results.push(...items);
+    }),
+    startActor('clockworks~tiktok-scraper', {
+      searchQueries: [brand],
+      resultsPerPage: 10,
+      shouldDownloadVideos: false,
+      shouldDownloadCovers: false,
+      shouldDownloadSlideshowImages: false,
+      shouldDownloadSubtitles: false
+    })
+  ];
+
+  if (tiktokHandle) {
+    jobs.push(startActor('clockworks~tiktok-scraper', {
+      profiles: [tiktokHandle],
+      resultsPerPage: 15,
+      shouldDownloadVideos: false,
+      shouldDownloadCovers: false,
+      shouldDownloadSlideshowImages: false,
+      shouldDownloadSubtitles: false
+    }));
+  }
+
+  const settled = await Promise.allSettled(
+    jobs.map(async jobPromise => {
+      const run = await jobPromise;
+      const finished = await pollRun(run.id);
+      return fetchDataset(finished.defaultDatasetId);
+    })
+  );
+  for (const r of settled) {
+    if (r.status === 'fulfilled') results.push(...r.value);
   }
 
   const seen = new Set();
@@ -135,8 +163,9 @@ async function runTikTok(brand, countryCode) {
   }));
 }
 
-async function runInstagram(brand) {
-  const handle = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
+async function runInstagram(brand, instagramHandle) {
+  // Use the provided handle if available; otherwise guess from brand name
+  const handle = instagramHandle || brand.toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // Run all three scrapers in parallel; failures are non-fatal
   const scraperJobs = [
@@ -372,7 +401,7 @@ ${formattedData}`;
   return JSON.parse(raw);
 }
 
-async function processRun(runId, brand, countryCode) {
+async function processRun(runId, brand, countryCode, tiktokHandle, instagramHandle) {
   const run = runs.get(runId);
 
   const scraperResults = { tiktok: [], instagram: [], reddit: [], google: [] };
@@ -381,12 +410,12 @@ async function processRun(runId, brand, countryCode) {
     {
       key: 'tiktok',
       actorId: 'clockworks~tiktok-scraper',
-      fn: () => runTikTok(brand, countryCode)
+      fn: () => runTikTok(brand, countryCode, tiktokHandle)
     },
     {
       key: 'instagram',
       actorId: 'apify~instagram-hashtag-scraper',
-      fn: () => runInstagram(brand)
+      fn: () => runInstagram(brand, instagramHandle)
     },
     {
       key: 'reddit',
@@ -433,7 +462,7 @@ async function processRun(runId, brand, countryCode) {
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.post('/api/run', (req, res) => {
-  const { brand, countryCode } = req.body;
+  const { brand, countryCode, tiktokHandle, instagramHandle } = req.body;
   if (!brand || !countryCode) {
     return res.status(400).json({ error: 'brand and countryCode are required' });
   }
@@ -455,7 +484,7 @@ app.post('/api/run', (req, res) => {
   };
   runs.set(runId, runData);
 
-  processRun(runId, brand, countryCode).catch(err => {
+  processRun(runId, brand, countryCode, tiktokHandle || null, instagramHandle || null).catch(err => {
     const run = runs.get(runId);
     if (run) {
       run.status = 'error';
